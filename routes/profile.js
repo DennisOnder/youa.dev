@@ -206,6 +206,7 @@ router.put(
   (req, res) => {
     const followed_user_id = req.params.id;
     const user_id = req.user.id;
+    console.log(followed_user_id, user_id);
     if (user_id === followed_user_id) {
       return toolkit.handler(
         req,

@@ -3,6 +3,8 @@ import axios from "axios";
 // FIXME: => Remove the proxy before deployment
 
 class StoreClass {
+  setAuthHeader = () =>
+    (axios.defaults.headers.common["Authorization"] = localStorage.token);
   applyProxy = url => {
     return `http://localhost:8000${url}`;
   };
@@ -77,6 +79,13 @@ class StoreClass {
       })
       .then(post => console.log(post))
       .catch(err => console.error(err));
+  };
+  followUser = id => {
+    this.setAuthHeader();
+    axios
+      .put(this.applyProxy(`/api/profile/follow/${id}`))
+      .then(data => console.log(data))
+      .catch(err => console.error(err.response.data));
   };
 }
 

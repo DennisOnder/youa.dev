@@ -89,6 +89,24 @@ export default class Profile extends Component {
                 ) : (
                   ""
                 )}
+                {isLoggedIn() &&
+                this.state.data.profile.user_id !== this.state.user.user_id ? (
+                  <div className="profile_page_header_controls">
+                    <button className="profile_page_header_controls_control">
+                      Message
+                    </button>
+                    <button
+                      className="profile_page_header_controls_control"
+                      onClick={() =>
+                        Store.followUser(this.state.data.profile.user_id)
+                      }
+                    >
+                      Follow
+                    </button>
+                  </div>
+                ) : (
+                  ""
+                )}
               </div>
             </div>
             <div className="profile_posts">
