@@ -20,7 +20,7 @@
     "Postgres",
     "React"
   ],
-  "author": "Dennis Onder",
+  "author": "Denis Onder",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/DennisOnder/youa.dev/issues"
@@ -31,18 +31,18 @@
     "body-parser": "^1.18.3",
     "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",
-    "nodemailer": "^6.3.0",
+    "nodemailer": "^6.3.1",
     "passport": "^0.4.0",
     "passport-jwt": "^4.0.0",
     "pg": "^7.12.1",
-    "sequelize": "^5.18.0",
-    "socket.io": "^2.2.0",
+    "sequelize": "^5.21.2",
+    "socket.io": "^2.3.0",
     "validator": "^10.11.0"
   },
   "devDependencies": {
     "concurrently": "^4.1.2",
     "cors": "^2.8.5",
     "dotenv": "^7.0.0",
-    "nodemon": "^1.19.1"
+    "nodemon": "^1.19.4"
   }
 }
