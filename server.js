@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const passport = require("passport");
 const config = require("./config/config");
+const socketHandler = require("./socketHandler");
+const adminAuthMiddleware = require("./middleware/adminAuthMiddleware");
 
 // App
 const app = express();
@@ -36,7 +38,10 @@ app.use("/api/auth", authRoute);
 app.use("/api/profile", profileRoute);
 app.use("/api/posts", postsRoute);
 app.use("/api/support", supportRoute);
+
+// Admin routes
 app.use("/api/admin", adminRoute);
+app.all("/api/admin", adminAuthMiddleware);
 
 // Database
 const Database = require("./db/Database");
@@ -45,7 +50,9 @@ Database.authenticate()
   .catch(err => console.error("Connection refused. Error: ", err));
 
 // FIXME: => Enable only when needed
-Database.sync({ logging: false });
+Database.sync({
+  logging: process.env.NODE_ENV === "development" ? true : false
+});
 
 // Server Init
 const server = require("http").Server(app);
@@ -53,59 +60,10 @@ const server = require("http").Server(app);
 // Socket.io
 const io = require("socket.io")(server);
 
+// Sockets
+io.on("connection", socketHandler);
+
 // Server Start
 app.listen(config.SERVER_PORT, () =>
   console.log(`Server running on http://localhost:${config.SERVER_PORT}/`)
 );
-
-// Modules required for chat messages
-const Message = require("./db/models/Message");
-const inputValidation = require("./utils/validateInput");
-
-// Sockets
-io.on("connection", socket => {
-  // Sending messages
-  socket.on("send_message", message => {
-    const inputErrors = inputValidation.message(message);
-    if (!inputErrors) {
-      Message.create({
-        user_id: message.userId,
-        recipient_user_id: message.recipientUserId,
-        body: message.body
-      })
-        .then(result => {
-          socket.emit("receive_message", result);
-        })
-        .catch(err => console.error(err));
-    }
-  });
-  socket.on("request_messages", data => {
-    Message.findAll({
-      where: { user_id: data.userId, recipient_user_id: data.recipientUserId }
-    })
-      .then(messages => {
-        if (messages) {
-          messages.forEach(message => {
-            socket.emit("receive_message", message);
-          });
-        } else {
-          socket.emit("receive_message", false);
-        }
-      })
-      .catch(err => console.error(err));
-  });
-  socket.on("delete_messages", data => {
-    Message.findAll({
-      where: { user_id: data.userId, recipient_user_id: data.recipientUserId }
-    }).then(messages => {
-      if (messages) {
-        messages.forEach(message => {
-          message.destroy();
-        });
-        socket.emit("messages_deleted", true);
-      } else {
-        socket.emit("messages_deleted", false);
-      }
-    });
-  });
-});
