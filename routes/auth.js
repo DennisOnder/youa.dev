@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
@@ -7,45 +7,31 @@ const toolkit = require("../utils/toolkit");
 const User = require("../db/models/User");
 const validateInput = require("../middleware/validateInput");
 
+function CustomException(status, message) {
+  this.status = status;
+  this.message = { error: message };
+}
+
 // TODO:    =>  Implement the mail module
 
 // ROUTE:   =>  /api/auth/register
 // METHOD:  =>  POST
 // DESC:    =>  Register a new user
 // TODO:    =>  Send out a verification email to the new user
-router.post("/register", validateInput, (req, res) => {
+router.post("/register", validateInput, async (req, res) => {
   const { email, password } = req.body;
-  // Check if user exists via email
-  User.findOne({
-    where: {
-      email
-    }
-  })
-    .then(user => {
-      // If there's no user, register a new one
-      if (!user) {
-        // Hash the password
-        bcrypt.hash(password, 14, (err, hash) => {
-          if (err) {
-            console.log(err);
-          } else {
-            // Save the user in the database
-            User.create({
-              email,
-              password: hash
-            })
-              .then(user => {
-                return toolkit.handler(req, res, 200, user);
-              })
-              .catch(err => console.error(err));
-          }
-        });
-        // Send an error message
-      } else {
-        return toolkit.handler(req, res, 400, "User already exists");
-      }
-    })
-    .catch(err => console.error(err));
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (user) throw new CustomException(403, `${email} is already in use.`);
+    // Hash the password
+    const hash = bcrypt.hashSync(password, 14);
+    const newUser = await User.create({ email, password: hash });
+    return res.status(200).json(newUser);
+  } catch (error) {
+    return res
+      .status(error.status || 500)
+      .json(error.message || "An error has occured.");
+  }
 });
 
 // ROUTE:   =>  /api/auth/login
