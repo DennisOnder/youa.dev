@@ -4,12 +4,9 @@ const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { SECRET_OR_KEY } = require("../config/config");
 const User = require("../db/models/User");
+const Profile = require("../db/models/Profile");
 const validateInput = require("../middleware/validateInput");
-
-function CustomException(status, message) {
-  this.status = status;
-  this.message = { error: message };
-}
+const CustomException = require("../utils/CustomException");
 
 // TODO:    =>  Implement the mail module
 
@@ -65,12 +62,14 @@ router.get(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
+  async (req, res) => {
     const { id, email, createdAt: joined } = req.user;
+    const profile = await Profile.findOne({ where: { user_id: id } });
     const response = {
       id,
       email,
-      joined
+      joined,
+      profile
     };
     return res.status(200).json(response);
   }

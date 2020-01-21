@@ -5,6 +5,8 @@ const inputValidation = require("../utils/validateInput");
 const Profile = require("../db/models/Profile");
 const Follow = require("../db/models/Follow");
 const Post = require("../db/models/Post");
+const CustomException = require("../utils/CustomException");
+const generateHandle = require("../utils/generateHandle");
 
 // ROUTE:   =>  /api/profile/create
 // METHOD:  =>  POST
@@ -14,62 +16,42 @@ router.post(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    // Check if the provided input is valid
-    const inputErrors = inputValidation.profile(req.body);
-    // If the function returns false, in regards of no errors being returned, proceed
-    if (!inputErrors) {
-      const { id } = req.user;
-      // Check if profile exists via user ID
-      Profile.findOne({
+  async (req, res) => {
+    try {
+      const inputErrors = inputValidation.profile(req.body);
+      if (inputErrors) throw new CustomException(400, inputErrors);
+      const profile = await Profile.findOne({
         where: {
-          user_id: id
+          user_id: req.user.id
         }
-      })
-        .then(profile => {
-          if (!profile) {
-            // If there's no profile, create a new one
-            const randomHandleNumber = `${Math.floor(
-              Math.random() * 10
-            )}${Math.floor(Math.random() * 10)}${Math.floor(
-              Math.random() * 10
-            )}`;
-            const handle = `${req.body.firstName
-              .toLowerCase()
-              .replace(" ", "")}-${req.body.lastName
-              .toLowerCase()
-              .replace(" ", "")}-${randomHandleNumber}`;
-            Profile.create({
-              user_id: id,
-              handle,
-              firstName: req.body.firstName,
-              lastName: req.body.lastName,
-              profilePicture: req.body.profilePicture,
-              website: req.body.website,
-              github: req.body.github,
-              linkedin: req.body.linkedin,
-              dev: req.body.dev,
-              stackoverflow: req.body.stackoverflow,
-              biography: req.body.biography
-            })
-              .then(profile => {
-                return toolkit.handler(req, res, 200, profile);
-              })
-              .catch(err => console.error(err));
-          } else {
-            // Send an error message
-            return toolkit.handler(
-              req,
-              res,
-              403,
-              "You already have a profile."
-            );
-          }
-        })
-        .catch(err => console.error(err));
-    } else {
-      // Otherwise, return a JSON object containing all the errors
-      return toolkit.handler(req, res, 400, inputErrors);
+      });
+      if (profile)
+        throw new CustomException(403, "You already have a profile.");
+      const handle = generateHandle(
+        `${req.body.firstName
+          .toLowerCase()
+          .replace(" ", "")}-${req.body.lastName
+          .toLowerCase()
+          .replace(" ", "")}`
+      );
+      const newProfile = await Profile.create({
+        user_id: req.user.id,
+        handle,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        profilePicture: req.body.profilePicture,
+        website: req.body.website,
+        github: req.body.github,
+        linkedin: req.body.linkedin,
+        dev: req.body.dev,
+        stackoverflow: req.body.stackoverflow,
+        biography: req.body.biography
+      });
+      return res.status(200).json(newProfile);
+    } catch (error) {
+      return res
+        .status(error.status || 500)
+        .json(error.message || "An error has occured.");
     }
   }
 );

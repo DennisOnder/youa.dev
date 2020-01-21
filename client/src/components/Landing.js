@@ -1,12 +1,12 @@
 // eslint-disable-next-line
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
-import isLoggedIn from "../utils/isLoggedIn";
+// import isLoggedIn from "../utils/isLoggedIn";
 
 class Landing extends Component {
-  componentDidMount() {
-    if (isLoggedIn()) window.location.href = "/dashboard";
-  }
+  // componentDidMount() {
+  //   if (isLoggedIn()) window.location.href = "/dashboard";
+  // }
 
   render() {
     return (
