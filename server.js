@@ -3,7 +3,6 @@ const bodyParser = require("body-parser");
 const passport = require("passport");
 const config = require("./config/config");
 const socketHandler = require("./socketHandler");
-const adminAuthMiddleware = require("./middleware/adminAuthMiddleware");
 
 // App
 const app = express();
@@ -38,10 +37,7 @@ app.use("/api/auth", authRoute);
 app.use("/api/profile", profileRoute);
 app.use("/api/posts", postsRoute);
 app.use("/api/support", supportRoute);
-
-// Admin routes
 app.use("/api/admin", adminRoute);
-app.all("/api/admin", adminAuthMiddleware);
 
 // Database
 const Database = require("./db/Database");

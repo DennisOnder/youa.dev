@@ -5,8 +5,10 @@ const Log = require("../db/models/Log");
 const Ticket = require("../db/models/Ticket");
 const Report = require("../db/models/Report");
 const User = require("../db/models/User");
+const adminAuthMiddleware = require("../middleware/adminAuthMiddleware");
 
 // TODO:    =>  Implement mail module
+router.use(adminAuthMiddleware);
 
 // ROUTE:   =>  /api/admin/ban/
 // METHOD:  =>  PUT

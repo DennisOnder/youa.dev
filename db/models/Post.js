@@ -13,6 +13,14 @@ const Post = Database.define("Post", {
   },
   body: {
     type: Sequelize.TEXT
+  },
+  likes: {
+    type: Sequelize.STRING,
+    defaultValue: JSON.stringify([])
+  },
+  comments: {
+    type: Sequelize.STRING,
+    defaultValue: JSON.stringify([])
   }
 });
 

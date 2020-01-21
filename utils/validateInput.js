@@ -1,6 +1,6 @@
 const validator = require("validator");
 
-class validateInput {
+class ValidateInput {
   constructor() {
     this.errors = {};
     this.reset = this.reset.bind(this);
@@ -134,5 +134,4 @@ class validateInput {
   }
 }
 
-const inputValidation = new validateInput();
-module.exports = inputValidation;
+module.exports = new ValidateInput();
