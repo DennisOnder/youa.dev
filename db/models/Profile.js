@@ -42,6 +42,10 @@ const Profile = Database.define("Profile", {
   biography: {
     type: Sequelize.STRING,
     defaultValue: ""
+  },
+  followers: {
+    type: Sequelize.STRING,
+    defaultValue: JSON.stringify([])
   }
 });
 
