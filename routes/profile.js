@@ -152,6 +152,7 @@ router.delete(
 // ROUTE:   =>  /api/profile/follow/:handle/
 // METHOD:  =>  PUT
 // DESC:    =>  Follow or un-follow a profile
+// FIXME:   =>  The function fails in the catch block due to the followers prop not being an array
 router.put(
   "/follow/:handle",
   passport.authenticate("jwt", {
