@@ -6,6 +6,12 @@ const Post = require("../db/models/Post");
 const CustomException = require("../utils/CustomException");
 const generateHandle = require("../utils/generateHandle");
 
+const handleFollow = async (profile, followers) => {
+  profile.followers = JSON.stringify(followers);
+  await profile.save();
+  return profile;
+};
+
 // ROUTE:   =>  /api/profile/create
 // METHOD:  =>  POST
 // DESC:    =>  Create a new profile
@@ -157,12 +163,23 @@ router.put(
         where: { handle: req.params.handle }
       });
       if (!profile) throw new CustomException(404, "Profile not found.");
-      const followerArr = JSON.parse(profile.followers);
-      const res =
-        followerArr.find((v, i) => {
-          if (v === req.user.id) return i;
-        }) || false;
-      return res.status(200).json(res);
+      // Check if the user is trying to follow it's own account.
+      if (profile.user_id === req.user.id)
+        throw new CustomException(400, "You cannot follow your own account.");
+      // Parse and iterate over followers, then handle the request
+      const followers = JSON.parse(profile.followers);
+      // Unfollow the user
+      for (let i = 0; i < followers.length; i++) {
+        if (followers[i] === req.user.id) {
+          return res
+            .status(200)
+            .json(await handleFollow(profile, followers.splice(i, 1)));
+        }
+      }
+      // Follow the user
+      return res
+        .status(200)
+        .json(await handleFollow(profile, followers.push(req.user.id)));
     } catch (error) {
       return res
         .status(error.status || 500)
