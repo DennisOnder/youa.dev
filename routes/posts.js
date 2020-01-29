@@ -1,11 +1,10 @@
 const router = require("express").Router();
 const passport = require("passport");
 const inputValidation = require("../utils/validateInput");
-const toolkit = require("../utils/toolkit");
+const CustomException = require("../utils/CustomException");
+const generateHandle = require("../utils/generateHandle");
+// const toolkit = require("../utils/toolkit");
 const Post = require("../db/models/Post");
-const Profile = require("../db/models/Profile");
-const Comment = require("../db/models/Comment");
-const Like = require("../db/models/Like");
 
 // ROUTE:   =>  /api/posts/create
 // METHOD:  =>  POST
@@ -15,31 +14,26 @@ router.post(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    const inputErrors = inputValidation.post(req.body);
-    if (!inputErrors) {
-      const randomHandleNumber = `${Math.floor(Math.random() * 10)}${Math.floor(
-        Math.random() * 10
-      )}${Math.floor(Math.random() * 10)}`;
-      Post.create({
+  async (req, res) => {
+    try {
+      const inputErrors = inputValidation.post(req.body);
+      if (inputErrors) throw new CustomException(400, inputErrors);
+      const post = await Post.create({
         user_id: req.user.id,
-        handle: `${req.body.title
-          .toLowerCase()
-          .split(" ")
-          .join("-")}-${randomHandleNumber}`,
+        handle: generateHandle(
+          `${req.body.title
+            .toLowerCase()
+            .split(" ")
+            .join("-")}`
+        ),
         title: req.body.title,
         body: req.body.body
-      })
-        .then(post => {
-          if (post) {
-            return toolkit.handler(req, res, 200, post);
-          } else {
-            return toolkit.handler(req, res, 400, "An error has occured.");
-          }
-        })
-        .catch(err => console.error(err));
-    } else {
-      return toolkit.handler(req, res, 400, inputErrors);
+      });
+      return res.status(200).json(post);
+    } catch (error) {
+      return res
+        .status(error.status || 500)
+        .json(error.message || "An error has occured.");
     }
   }
 );
@@ -47,320 +41,152 @@ router.post(
 // ROUTE:   =>  /api/posts/get/:handle
 // METHOD:  =>  GET
 // DESC:    =>  Get a post via handle
-router.get("/get/:handle", (req, res) => {
-  Post.findOne({
+router.get("/get/:handle", async (req, res) => {
+  const { handle } = req.params;
+  const post = await Post.findOne({
     where: {
-      handle: req.params.handle
+      handle
     }
-  })
-    .then(post => {
-      if (post) {
-        Profile.findOne({ where: { user_id: post.user_id } }).then(profile => {
-          if (profile) {
-            return toolkit.handler(req, res, 200, { profile, post });
-          }
-        });
-      } else {
-        return toolkit.handler(req, res, 404, "Post not found.");
-      }
-    })
-    .catch(err => console.error(err));
+  });
+  if (!post)
+    return res.status(404).json({ error: `No post with the ${handle} found.` });
+  return res.status(200).json(post);
 });
 
-// ROUTE:   =>  /api/posts/user/:id
-// METHOD:  =>  GET
-// DESC:    =>  Get posts for each user via ID
-router.get("/user/:handle", (req, res) => {
-  Post.findAll({
-    where: {
-      user_id: req.params.id
-    }
-  })
-    .then(posts => {
-      if (posts) {
-        return toolkit.handler(req, res, 200, posts);
-      } else {
-        return toolkit.handler(req, res, 404, "The user has no posts.");
-      }
-    })
-    .catch(err => console.error(err));
-});
-
-// ROUTE:   =>  /api/posts/:handle/edit
+// ROUTE:   =>  /api/posts/:id/edit
 // METHOD:  =>  PUT
 // DESC:    =>  Edit a post
 router.put(
-  "/edit/:handle",
+  "/edit/:id",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Post.findOne({
+  async (req, res) => {
+    const post = await Post.findOne({
       where: {
-        handle: req.params.handle,
+        id: req.params.id,
         user_id: req.user.id
       }
-    })
-      .then(profile => {
-        if (profile) {
-          profile
-            .update({
-              handle: `${req.body.title.toLowerCase().replace(" ", "-")}`,
-              title: req.body.title,
-              body: req.body.body
-            })
-            .then(result => {
-              return toolkit.handler(req, res, 200, result);
-            })
-            .catch(err => console.error(err));
-        } else {
-          return toolkit.handler(req, res, 404, "Post not found.");
-        }
+    });
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    post
+      .update({
+        handle: generateHandle(
+          `${req.body.title
+            .toLowerCase()
+            .split(" ")
+            .join("-")}`
+        ),
+        title: req.body.title,
+        body: req.body.body
       })
-      .catch(err => console.error(err));
+      .then(post => res.status(200).json(post));
   }
 );
 
-// ROUTE:   =>  /api/posts/delete/:handle
+// ROUTE:   =>  /api/posts/delete/:id
 // METHOD:  =>  DELETE
 // DESC:    =>  Delete a post
 router.delete(
-  "/delete/:handle",
+  "/delete/:id",
   passport.authenticate("jwt", {
     session: false
   }),
   (req, res) => {
     Post.destroy({
       where: {
-        handle: req.params.handle,
+        id: req.params.id,
         user_id: req.user.id
       }
     })
-      // If the delete request was successful, send out a JSON object with the value of true
-      .then(() => {
-        return toolkit.handler(req, res, 200, "Post deleted.");
-      })
-      // Else, log the produced error
-      .catch(err => console.error(err));
+      .then(() =>
+        res.status(200).json({ deleted: true, timestamp: Date.now() })
+      )
+      .catch(error => res.status(500).json(error));
   }
 );
 
-// ROUTE:   =>  /api/posts/comments/:handle
-// METHOD:  =>  GET
-// DESC:    =>  Get comments
-router.get("/comments/:handle", (req, res) => {
-  Post.findOne({
-    where: {
-      handle: req.params.handle
-    }
-  }).then(post => {
-    if (post) {
-      Comment.findAll({
-        where: {
-          post_id: post.id
-        }
-      }).then(comments => {
-        if (comments) {
-          return toolkit.handler(req, res, 200, comments);
-        } else {
-          return toolkit.handler(req, res, 404, "No comments found.");
-        }
-      });
-    } else {
-      return toolkit.handler(req, res, 404, "Post not found.");
-    }
-  });
-});
-
-// ROUTE:   =>  /api/posts/comment/:handle/
+// ROUTE:   =>  /api/posts/comment/:id/
 // METHOD:  =>  PUT
 // DESC:    =>  Comment on a post
 router.put(
-  "/comment/:handle",
+  "/comment/:id",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
+  async (req, res) => {
+    const post = await Post.findOne({
+      where: {
+        handle: req.params.id
+      }
+    });
+    if (!post) return res.status(404).json({ error: "Post not found." });
     const inputErrors = inputValidation.comment(req.body);
-    if (!inputErrors) {
-      Post.findOne({
-        where: {
-          handle: req.params.handle
-        }
-      })
-        .then(post => {
-          if (post) {
-            Comment.create({
-              user_id: req.user.id,
-              post_id: post.id,
-              body: req.body.body
-            })
-              .then(comment => {
-                return toolkit.handler(req, res, 200, comment);
-              })
-              .catch(err => console.error(err));
-          } else {
-            return toolkit.handler(req, res, 404, "Post not found.");
-          }
-        })
-        .catch(err => console.error(err));
-    } else {
-      return toolkit.handler(req, res, 400, inputErrors);
-    }
+    if (inputErrors) return res.status(500).json(inputErrors);
+    // NOTE: Implement comments
+    return res.status(200).json(post.comments);
   }
 );
 
-// ROUTE:   =>  /api/posts/comment/edit/:handle
+// ROUTE:   =>  /api/posts/comment/edit/:postID/:commentID
 // METHOD:  =>  PATCH
 // DESC:    =>  Edit a comment
 router.patch(
-  "/comment/edit/:handle",
+  "/comment/edit/:postID/:commentID",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Post.findOne({
+  async (req, res) => {
+    const post = await Post.findOne({
       where: {
-        handle: req.params.handle
+        handle: req.params.postID
       }
-    })
-      .then(post => {
-        if (post) {
-          Comment.findOne({
-            where: {
-              user_id: req.user.id,
-              post_id: post.id
-            }
-          }).then(comment => {
-            if (comment) {
-              comment
-                .update({
-                  body: req.body.body
-                })
-                .then(result => {
-                  return toolkit.handler(req, res, 200, result);
-                })
-                .catch(err => console.error(err));
-            } else {
-              return toolkit.handler(req, res, 404, "Comment not found.");
-            }
-          });
-        } else {
-          return toolkit.handler(req, res, 404, "Post not found.");
-        }
-      })
-      .catch(err => console.error(err));
+    });
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    const inputErrors = inputValidation.comment(req.body);
+    if (inputErrors) return res.status(500).json(inputErrors);
+    // NOTE: Implement comments
+    return res.status(200).json(post.comments);
   }
 );
 
-// ROUTE:   =>  /api/posts/comment/delete/:handle
+// ROUTE:   =>  /api/posts/comment/delete/:postID/:commentID
 // METHOD:  =>  DELETE
 // DESC:    =>  Delete a comment
 router.delete(
-  "/comment/delete/:handle",
+  "/comment/delete/:postID/:commentID",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Post.findOne({
+  async (req, res) => {
+    const post = await Post.findOne({
       where: {
-        handle: req.params.handle
-      }
-    }).then(post => {
-      if (post) {
-        Comment.findOne({
-          where: {
-            user_id: req.user.id,
-            post_id: post.id
-          }
-        }).then(comment => {
-          if (comment) {
-            comment
-              .destroy()
-              .then(() => {
-                return toolkit.handler(req, res, 200, "Comment deleted.");
-              })
-              .catch(err => console.error(err));
-          } else {
-            return toolkit.handler(req, res, 404, "Comment not found.");
-          }
-        });
-      } else {
-        return toolkit.handler(req, res, 404, "Post not found.");
+        handle: req.params.postID
       }
     });
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    // NOTE: Implement comments
+    return res.status(200).json(post.comments);
   }
 );
 
-// ROUTE:   =>  /api/posts/likes/:handle
-// METHOD:  =>  GET
-// DESC:    =>  Get likes
-router.get("/likes/:handle", (req, res) => {
-  Post.findOne({
-    where: {
-      handle: req.params.handle
-    }
-  }).then(post => {
-    if (post) {
-      Like.findAll({
-        where: {
-          post_id: post.id
-        }
-      })
-        .then(likes => {
-          return toolkit.handler(req, res, 200, likes);
-        })
-        .catch(err => console.error(err));
-    } else {
-      return toolkit.handler(req, res, 404, "Post not found");
-    }
-  });
-});
-
-// ROUTE:   =>  /api/posts/like/:handle
+// ROUTE:   =>  /api/posts/like/:id
 // METHOD:  =>  PATCH
 // DESC:    =>  Like or dislike a post
 router.patch(
-  "/like/:handle",
+  "/like/:id",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Post.findOne({
+  async (req, res) => {
+    const post = await Post.findOne({
       where: {
-        handle: req.params.handle
-      }
-    }).then(post => {
-      if (post) {
-        Like.findOne({
-          where: {
-            user_id: req.user.id,
-            post_id: post
-          }
-        }).then(like => {
-          if (!like) {
-            Like.create({
-              user_id: req.user.id,
-              post_id: post.id,
-              value: true
-            })
-              .then(() => {
-                return toolkit.handler(req, res, 200, true);
-              })
-              .catch(err => console.error(err));
-          } else {
-            like
-              .destroy()
-              .then(() => {
-                return toolkit.handler(req, res, 200, false);
-              })
-              .catch(err => console.error(err));
-          }
-        });
-      } else {
-        return toolkit.handler(req, res, 404, "Post not found.");
+        handle: req.params.id
       }
     });
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    // NOTE: Implement likes
+    return res.status(200).json(post.likes);
   }
 );
 
