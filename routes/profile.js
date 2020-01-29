@@ -6,12 +6,6 @@ const Post = require("../db/models/Post");
 const CustomException = require("../utils/CustomException");
 const generateHandle = require("../utils/generateHandle");
 
-const handleFollow = async (profile, followers) => {
-  profile.followers = JSON.stringify(followers);
-  await profile.save();
-  return profile;
-};
-
 // ROUTE:   =>  /api/profile/create
 // METHOD:  =>  POST
 // DESC:    =>  Create a new profile
@@ -152,7 +146,6 @@ router.delete(
 // ROUTE:   =>  /api/profile/follow/:handle/
 // METHOD:  =>  PUT
 // DESC:    =>  Follow or un-follow a profile
-// FIXME:   =>  The function fails in the catch block due to the followers prop not being an array
 router.put(
   "/follow/:handle",
   passport.authenticate("jwt", {
@@ -166,21 +159,16 @@ router.put(
       if (!profile) throw new CustomException(404, "Profile not found.");
       // Check if the user is trying to follow it's own account.
       if (profile.user_id === req.user.id)
-        throw new CustomException(400, "You cannot follow your own account.");
+        throw new CustomException(400, "You cannot follow your own profile.");
       // Parse and iterate over followers, then handle the request
-      const followers = JSON.parse(profile.followers);
-      // Unfollow the user
-      for (let i = 0; i < followers.length; i++) {
-        if (followers[i] === req.user.id) {
-          return res
-            .status(200)
-            .json(await handleFollow(profile, followers.splice(i, 1)));
-        }
-      }
-      // Follow the user
-      return res
-        .status(200)
-        .json(await handleFollow(profile, followers.push(req.user.id)));
+      let followers = JSON.parse(profile.followers);
+      if (!Array.isArray(followers)) followers = [];
+      followers.includes(req.user.id)
+        ? followers.splice(followers.indexOf(req.user.id))
+        : followers.push(req.user.id);
+      profile
+        .update({ followers: JSON.stringify(followers) })
+        .then(profile => res.status(200).json(profile));
     } catch (error) {
       return res
         .status(error.status || 500)

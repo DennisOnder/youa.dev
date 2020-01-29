@@ -3,7 +3,6 @@ const passport = require("passport");
 const inputValidation = require("../utils/validateInput");
 const CustomException = require("../utils/CustomException");
 const generateHandle = require("../utils/generateHandle");
-// const toolkit = require("../utils/toolkit");
 const Post = require("../db/models/Post");
 
 // ROUTE:   =>  /api/posts/create
