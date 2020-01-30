@@ -98,8 +98,14 @@ router.delete(
         user_id: req.user.id
       }
     })
-      .then(() =>
-        res.status(200).json({ deleted: true, timestamp: Date.now() })
+      .then(post =>
+        res
+          .status(post ? 200 : 404)
+          .json(
+            post
+              ? { deleted: true, timestamp: Date.now() }
+              : { error: "Post not found." }
+          )
       )
       .catch(error => res.status(500).json(error));
   }
