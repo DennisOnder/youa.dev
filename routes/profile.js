@@ -164,7 +164,7 @@ router.put(
       let followers = JSON.parse(profile.followers);
       if (!Array.isArray(followers)) followers = [];
       followers.includes(req.user.id)
-        ? followers.splice(followers.indexOf(req.user.id))
+        ? followers.splice(followers.indexOf(req.user.id), 1)
         : followers.push(req.user.id);
       profile
         .update({ followers: JSON.stringify(followers) })

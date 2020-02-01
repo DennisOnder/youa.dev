@@ -3,6 +3,7 @@ const passport = require("passport");
 const inputValidation = require("../utils/validateInput");
 const CustomException = require("../utils/CustomException");
 const generateHandle = require("../utils/generateHandle");
+const generateComment = require("../utils/generateComment");
 const Post = require("../db/models/Post");
 
 // ROUTE:   =>  /api/posts/create
@@ -111,25 +112,29 @@ router.delete(
   }
 );
 
-// ROUTE:   =>  /api/posts/comment/:id/
+// ROUTE:   =>  /api/posts/comment/:handle/
 // METHOD:  =>  PUT
 // DESC:    =>  Comment on a post
 router.put(
-  "/comment/:id",
+  "/comment/:handle",
   passport.authenticate("jwt", {
     session: false
   }),
   async (req, res) => {
     const post = await Post.findOne({
       where: {
-        handle: req.params.id
+        handle: req.params.handle
       }
     });
     if (!post) return res.status(404).json({ error: "Post not found." });
-    const inputErrors = inputValidation.comment(req.body);
-    if (inputErrors) return res.status(500).json(inputErrors);
-    // NOTE: Implement comments
-    return res.status(200).json(post.comments);
+    let comments = JSON.parse(post.comments);
+    if (!Array.isArray(comments)) comments = [];
+    const comment = generateComment(req);
+    if (!comment) return res.status(500).json("An error occured.");
+    comments.push(comment);
+    post
+      .update({ comments: JSON.stringify(comments) })
+      .then(post => res.status(200).json(post));
   }
 );
 
@@ -175,23 +180,31 @@ router.delete(
   }
 );
 
-// ROUTE:   =>  /api/posts/like/:id
+// ROUTE:   =>  /api/posts/like/:handle
 // METHOD:  =>  PATCH
 // DESC:    =>  Like or dislike a post
 router.patch(
-  "/like/:id",
+  "/like/:handle",
   passport.authenticate("jwt", {
     session: false
   }),
   async (req, res) => {
     const post = await Post.findOne({
       where: {
-        handle: req.params.id
+        handle: req.params.handle
       }
     });
     if (!post) return res.status(404).json({ error: "Post not found." });
-    // NOTE: Implement likes
-    return res.status(200).json(post.likes);
+    if (post.user_id === req.user.id)
+      return res.status(403).json({ erro: "You cannot like your own post." });
+    let likes = JSON.parse(post.likes);
+    if (!Array.isArray(likes)) likes = [];
+    likes.includes(req.user.id)
+      ? likes.splice(likes.indexOf(req.user.id), 1)
+      : likes.push(req.user.id);
+    post
+      .update({ likes: JSON.stringify(likes) })
+      .then(post => res.status(200).json(post));
   }
 );
 
