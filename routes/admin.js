@@ -1,6 +1,5 @@
 const router = require("express").Router();
 const passport = require("passport");
-const Log = require("../db/models/Log");
 const Ticket = require("../db/models/Ticket");
 const Report = require("../db/models/Report");
 const User = require("../db/models/User");
@@ -43,17 +42,6 @@ router.put(
       .update({ type: user.type === "user" ? "admin" : "user" })
       .then(updated => res.status(200).json(updated));
   }
-);
-
-// ROUTE:   =>  /api/admin/logs
-// METHOD:  =>  GET
-// DESC:    =>  Get server logs
-router.get(
-  "/logs",
-  passport.authenticate("jwt", {
-    session: false
-  }),
-  (_, res) => Log.findAll().then(logs => res.status(200).json(logs))
 );
 
 // ROUTE:   =>  /api/admin/tickets
