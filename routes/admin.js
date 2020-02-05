@@ -1,6 +1,5 @@
 const router = require("express").Router();
 const passport = require("passport");
-const toolkit = require("../utils/toolkit");
 const Log = require("../db/models/Log");
 const Ticket = require("../db/models/Ticket");
 const Report = require("../db/models/Report");
@@ -18,58 +17,31 @@ router.put(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    const userEmail = req.body.email;
-    User.findOne({
-      where: {
-        email: userEmail
-      }
-    }).then(user => {
-      if (user) {
-        user
-          .update({
-            isBanned: !user.isBanned
-          })
-          .then(result => {
-            return toolkit.handler(req, res, 200, result, true);
-          });
-      } else {
-        return toolkit.handler(req, res, 404, "User not found.");
-      }
-    });
+  async (req, res) => {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found." });
+    user
+      .update({ isBanned: !user.isBanned })
+      .then(updated => res.status(200).json(updated));
   }
 );
 
-// ROUTE:   =>  /api/admin/rank/promote
+// ROUTE:   =>  /api/admin/rank
 // METHOD:  =>  PUT
 // DESC:    =>  Promote or demote an user to admin
 router.put(
-  "/rank/promote",
+  "/rank",
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    // Check if admin
-    const userEmail = req.body.email;
-    // Find an user via email
-    User.findOne({
-      where: {
-        email: userEmail
-      }
-    }).then(user => {
-      if (user) {
-        user
-          .update({
-            type: user.type === "user" ? "admin" : "user"
-          })
-          .then(result => {
-            return toolkit.handler(req, res, 200, result, true);
-          })
-          .catch(err => console.error(err));
-      } else {
-        return toolkit.handler(req, res, 404, "User not found.");
-      }
-    });
+  async (req, res) => {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found." });
+    user
+      .update({ type: user.type === "user" ? "admin" : "user" })
+      .then(updated => res.status(200).json(updated));
   }
 );
 
@@ -81,11 +53,7 @@ router.get(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Log.findAll().then(logs => {
-      return toolkit.handler(req, res, 200, logs);
-    });
-  }
+  (_, res) => Log.findAll().then(logs => res.status(200).json(logs))
 );
 
 // ROUTE:   =>  /api/admin/tickets
@@ -96,15 +64,7 @@ router.get(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Ticket.findAll({
-      where: {
-        resolved: false
-      }
-    }).then(tickets => {
-      return toolkit.handler(req, res, 200, tickets);
-    });
-  }
+  (_, res) => Ticket.findAll().then(tickets => res.status(200).json(tickets))
 );
 
 // ROUTE:   =>  /api/admin/reports
@@ -115,15 +75,7 @@ router.get(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Report.findAll({
-      where: {
-        resolved: false
-      }
-    }).then(reports => {
-      return toolkit.handler(req, res, 200, reports);
-    });
-  }
+  (_, res) => Report.findAll().then(reports => res.status(200).json(reports))
 );
 
 // ROUTE:   =>  /api/admin/tickets/resolve/:id
@@ -134,25 +86,16 @@ router.put(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Ticket.findOne({
+  async (req, res) => {
+    const ticket = await Ticket.findOne({
       where: {
         id: req.params.id
       }
-    }).then(ticket => {
-      if (ticket) {
-        ticket
-          .update({
-            resolved: true
-          })
-          .then(result => {
-            return toolkit.handler(req, res, 200, result);
-          })
-          .catch(err => console.error(err));
-      } else {
-        return toolkit.handler(req, res, 404, "Ticket not found.");
-      }
     });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+    ticket
+      .update({ resolved: true })
+      .then(updated => res.status(200).json(updated));
   }
 );
 
@@ -164,25 +107,16 @@ router.put(
   passport.authenticate("jwt", {
     session: false
   }),
-  (req, res) => {
-    Report.findOne({
+  async (req, res) => {
+    const report = await Report.findOne({
       where: {
         id: req.params.id
       }
-    }).then(report => {
-      if (report) {
-        report
-          .update({
-            resolved: true
-          })
-          .then(result => {
-            return toolkit.handler(req, res, 200, result);
-          })
-          .catch(err => console.error(err));
-      } else {
-        return toolkit.handler(req, res, 404, "Report not found.");
-      }
     });
+    if (!report) return res.status(404).json({ error: "Report not found." });
+    report
+      .update({ resolved: true })
+      .then(updated => res.status(200).json(updated));
   }
 );
 
